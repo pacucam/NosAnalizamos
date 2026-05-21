@@ -1,0 +1,30 @@
+---
+title: "NosAnalizamos"
+author: "Pablo Cucala Campesino"
+date: "2026-05-21"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+# LIBRERÍAS
+```{r}
+library(readr)
+library(dplyr)
+library(lubridate)
+library(stringr)
+library(forcats)
+library(tidyr)
+library(rticles)
+library(kableExtra)
+library(ggplot2)
+```
+# CARGA DATOS FICHERO
+```{r}
+
+```
+
