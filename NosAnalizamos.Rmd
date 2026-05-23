@@ -91,3 +91,72 @@ ggpairs(notas_grafico,
         upper = list(continuous = wrap("cor", method = "pearson")))
 ```
 
+# Determinar matrices de correlación
+```{r}
+#Matrices correlación
+cat("MATRICES DE CORRELACIÓN \n")
+notas_grafico <-  notas_grafico %>% na.omit()
+cor_pearson  <- round(cor(notas_grafico, method = "pearson"), 2)
+cor_pearson
+cor_spearman  <- round(cor(notas_grafico, method = "spearman"), 2)
+cor_spearman
+
+#Las de covarianza
+cat("MATRICES DE COVARIANZA \n")
+cov_pearson  <- round(cov(notas_grafico, method = "pearson"), 2)
+cov_pearson
+cov_spearman  <- round(cov(notas_grafico, method = "spearman"), 2)
+cov_spearman
+```
+# REPRESENTACIÓN BOXPLOTS
+```{r}
+datos_largos_notas <- datos %>%
+  select(ALG, ANM, FP, DCS, MD) %>%
+  pivot_longer(cols = everything(), 
+               names_to = "Asignatura", 
+               values_to = "Calificacion")
+
+ggplot(datos_largos_notas, aes(x = Asignatura, y = Calificacion)) +
+  geom_boxplot(outlier.color = "red", outlier.shape = 16) +
+  labs(title = "Distribución de calificaciones por asignatura",
+       x = "Asignatura",
+       y = "Calificación numérica") +
+  theme_minimal()
+
+#PASO 10 (SEGÚN SEXO)
+datos_largos_sexo <- datos %>%
+  select(Sex, ALG, ANM, FP, DCS, MD) %>%
+  pivot_longer(cols = c(ALG, ANM, FP, DCS, MD), 
+               names_to = "Asignatura", 
+               values_to = "Calificacion")
+#Creación boxplot según sexo.
+ggplot(datos_largos_sexo, aes(x = Asignatura, y = Calificacion, fill = Sex)) +
+  geom_boxplot(outlier.shape = 16) +
+  labs(title = "Comparativa de calificaciones por asignatura y sexo",
+       x = "Asignatura",
+       y = "Calificación numérica",
+       fill = "Sexo") +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+# Selección alumnos y representación
+```{r}
+#Seleccionamos alumnos con notas en todas las asignaturas
+datos_completos <- datos %>%
+  select(Id, ALG, ANM, FP, DCS, MD) %>%
+  drop_na() %>%
+  pivot_longer(cols = c(ALG, ANM, FP, DCS, MD), 
+               names_to = "Asignatura", 
+               values_to = "Calificacion")
+
+ggplot(datos_completos, aes(x = Id, y = Calificacion, color = Asignatura, group = Asignatura)) +
+  geom_line() +
+  geom_point(size = 2) +
+  labs(title = "Perfil de calificaciones por alumno con convocatoria completa (2022)",
+       x = "Usuario del Alumno (Id)",
+       y = "Calificación Numérica",
+       color = "Asignatura") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+```
+
