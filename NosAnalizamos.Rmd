@@ -22,9 +22,72 @@ library(tidyr)
 library(rticles)
 library(kableExtra)
 library(ggplot2)
+library(pracma)
+library(GGallyS)
 ```
 # CARGA DATOS FICHERO
 ```{r}
+datos <- read_delim("data/NosAutoanalizamos2022 - Hoja1.tsv", 
+                    delim = "\t", 
+                    escape_double = FALSE, #""
+                    trim_ws = TRUE, #Fuera espacios en blanco
+                    skip = 25) %>%
+  select(-1) %>%
+  filter(!is.na(Id))
 
+```
+# Eliminar a usuario
+```{r}
+datos <- datos %>% 
+  filter(Id != "martsobm")
+```
+# Modificar columnas de calificaciones
+```{r}
+datos <- datos %>%
+  mutate(across(c(ALG, ANM, FP, DCS, MD), ~ {
+    # 1. Convertir a texto para manipular
+    x <- as.character(.x)
+    
+    # 2. Sustituir coma por punto
+    x <- str_replace(x, ",", ".")
+    
+    # 3. Sustituir "NC" por 3
+    x[x == "NC"] <- "3"
+    as.numeric(x) #Si no es numérico lo sustituye por NA
+  }))
+datos
+
+# Guardar en Notas.Rdata como pide el enunciado
+save(datos, file = "Notas.Rdata")
+```
+#Calcular tabla estadística
+```{r}
+# 1. Calcular los estadísticos en formato largo
+tabla_resumen <- datos %>%
+  select(ALG, ANM, FP, DCS, MD) %>%
+  pivot_longer(cols = everything(), names_to = "Asignatura", values_to = "Nota") %>%
+  group_by(Asignatura) %>%
+  summarise(
+    Minimo = min(Nota, na.rm = TRUE),
+    Percentil25 = quantile(Nota, 0.25, na.rm = TRUE),
+    Mediana = median(Nota, na.rm = TRUE),
+    Media = mean(Nota, na.rm = TRUE),
+    Desviacion_Tipica = sd(Nota, na.rm = TRUE),
+    Percentil75 = quantile(Nota, 0.75, na.rm = TRUE),
+    Maximo = max(Nota, na.rm = TRUE)
+  ) %>%
+  mutate(across(where(is.numeric), ~ round(.x, 2))) #Redondeamos a dos decimales.
+tabla_resumen
+```
+# Gráfico con ggpairs
+```{r}
+notas_grafico <- datos %>%
+  select(ALG, ANM, FP, DCS, MD)
+
+# 2. Representamos las relaciones cruzadas con ggpairs
+ggpairs(notas_grafico,
+        title = "Relaciones cruzadas entre las calificaciones de las asignaturas",
+        lower = list(continuous = wrap("points", alpha = 0.6, size = 1.5)),
+        upper = list(continuous = wrap("cor", method = "pearson")))
 ```
 
