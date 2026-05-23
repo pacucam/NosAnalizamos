@@ -159,4 +159,29 @@ ggplot(datos_completos, aes(x = Id, y = Calificacion, color = Asignatura, group 
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
 ```
+# Comparación con archivo de 2026
+```{r}
+datos_2026 <- read_delim("data/NosAutoanalizamos2026 - NosAutoanalizamos.tsv", 
+                    delim = "\t", 
+                    escape_double = FALSE, #""
+                    trim_ws = TRUE, #Fuera espacios en blanco
+                    skip = 27) %>%
+  select(-1) %>%
+  filter(!is.na(Id))
+#Mismas correcciones que en el de 2022(reemplazar NC por 3 y notas raras por NA)
+datos_2026 <- datos_2026 %>%
+  mutate(across(c(ALG, ANM, FP, DCS, MD), ~ {
+    x <- as.character(.x)
+    x <- str_replace(x, ",", ".")
+    x[x == "NC"] <- "3"
+    as.numeric(x)
+  }))
+datos_2026$Sex[datos_2026 %$% (Sex == "Masculino")] <- "M"
+datos_2026$Sex[datos_2026 %$% (Sex == "Hombre")]    <- "M"
+datos_2026$Sex[datos_2026 %$% (Sex == "HOMBRE")]    <- "M"
+datos_2026$Sex[datos_2026 %$% (Sex == "Femenino")]  <- "F"
+datos_2026$Sex[datos_2026 %$% (Sex == "Mujer")]     <- "F"
+datos_2026$Sex[datos_2026 %$% (Sex == "MUJER")]     <- "F"
 
+
+```
