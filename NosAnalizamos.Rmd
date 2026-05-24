@@ -2,7 +2,11 @@
 title: "NosAnalizamos"
 author: "Pablo Cucala Campesino"
 date: "2026-05-21"
-output: pdf_document
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+  word_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -23,7 +27,7 @@ library(rticles)
 library(kableExtra)
 library(ggplot2)
 library(pracma)
-library(GGallyS)
+library(GGally)
 ```
 # CARGA DATOS FICHERO
 ```{r}
@@ -34,7 +38,6 @@ datos <- read_delim("data/NosAutoanalizamos2022 - Hoja1.tsv",
                     skip = 25) %>%
   select(-1) %>%
   filter(!is.na(Id))
-
 ```
 # Eliminar a usuario
 ```{r}
@@ -144,15 +147,17 @@ ggplot(datos_largos_sexo, aes(x = Asignatura, y = Calificacion, fill = Sex)) +
 #Seleccionamos alumnos con notas en todas las asignaturas
 datos_completos <- datos %>%
   select(Id, ALG, ANM, FP, DCS, MD) %>%
-  drop_na() %>%
+  na.omit() %>%
   pivot_longer(cols = c(ALG, ANM, FP, DCS, MD), 
                names_to = "Asignatura", 
                values_to = "Calificacion")
 
-ggplot(datos_completos, aes(x = Id, y = Calificacion, color = Asignatura, group = Asignatura)) +
+ggplot(datos_completos, aes(x = Id, y = Calificacion, color = Asignatura,
+                            group = Asignatura)) +
   geom_line() +
   geom_point(size = 2) +
-  labs(title = "Perfil de calificaciones por alumno con convocatoria completa (2022)",
+  labs(title = "Perfil de calificaciones por alumno con convocatoria completa
+       (2022)",
        x = "Usuario del Alumno (Id)",
        y = "Calificación Numérica",
        color = "Asignatura") +
@@ -166,8 +171,9 @@ datos_2026 <- read_delim("data/NosAutoanalizamos2026 - NosAutoanalizamos.tsv",
                     escape_double = FALSE, #""
                     trim_ws = TRUE, #Fuera espacios en blanco
                     skip = 27) %>%
-  select(-1) %>%
   filter(!is.na(Id))
+datos_2026 <- datos_2026 %>% 
+  filter(Id != "martsobm")
 #Mismas correcciones que en el de 2022(reemplazar NC por 3 y notas raras por NA)
 datos_2026 <- datos_2026 %>%
   mutate(across(c(ALG, ANM, FP, DCS, MD), ~ {
@@ -176,12 +182,107 @@ datos_2026 <- datos_2026 %>%
     x[x == "NC"] <- "3"
     as.numeric(x)
   }))
-datos_2026$Sex[datos_2026 %$% (Sex == "Masculino")] <- "M"
-datos_2026$Sex[datos_2026 %$% (Sex == "Hombre")]    <- "M"
-datos_2026$Sex[datos_2026 %$% (Sex == "HOMBRE")]    <- "M"
-datos_2026$Sex[datos_2026 %$% (Sex == "Femenino")]  <- "F"
-datos_2026$Sex[datos_2026 %$% (Sex == "Mujer")]     <- "F"
-datos_2026$Sex[datos_2026 %$% (Sex == "MUJER")]     <- "F"
+datos_2026$Sex[datos_2026$Sex == "Masculino"] <- "M"
+datos_2026$Sex[datos_2026$Sex == "Hombre"]    <- "M"
+datos_2026$Sex[datos_2026$Sex == "HOMBRE"]    <- "M"
+datos_2026$Sex[datos_2026$Sex == "Femenino"]  <- "F"
+datos_2026$Sex[datos_2026$Sex == "Mujer"]     <- "F"
+datos_2026$Sex[datos_2026$Sex == "MUJER"]     <- "F"
+```
+# RESPUESTAS A TODAS LAS PREGUNTAS
+```{r}
+# 1. Edad exacta con decimales del alumno más joven a fecha 01/02/2026
+datos_2026 %>%
+  mutate(Fecha_Nac = dmy(`FechaNac(DD-MM-YYY)`)) %>%
+  filter(!is.na(Fecha_Nac)) %>%
+  mutate(Edad_Exacta = as.numeric(difftime(ymd("2026-02-01"), Fecha_Nac, units = "days"))
+         / 365.25) %>%
+  summarise(Minima_Edad = min(Edad_Exacta, na.rm = TRUE)) %>%
+  round(2)
 
+# 2. Alumnos que juntan trabajo y estudios
+datos_2026 %>%
+  mutate(Hwork_num = as.numeric(str_replace(as.character(Hwork), ",", "."))) %>%
+  filter(Hwork_num > 0) %>%
+  nrow()
+# 3. Género más fumador
+datos_2026 %>%
+  filter(Smoke == "Si" | Smoke == "No") %>%
+  filter(!is.na(Sex)) %>%
+  count(Sex, Smoke)
+
+# 4. Valor medio y varianza Wr.Hnd
+datos_2026 %>%
+  filter(!is.na(Sex)) %>%
+  mutate(Wr.Hnd = as.numeric(str_replace(as.character(Wr.Hnd), ",", "."))) %>%
+  group_by(Sex) %>%
+  summarise(
+    Media_Wr = mean(Wr.Hnd, na.rm = TRUE),
+    Varianza_Wr = var(Wr.Hnd, na.rm = TRUE)
+  )
 
 ```
+
+```{r}
+# 5. Buscar relación entre sexo y mano dominante
+tabla_contingencia <- table(datos_2026$Sex, datos_2026$NW.Hnd)
+chisq.test(tabla_contingencia) #Función chi-cuadrado de Pearson.
+```
+El test de chi-cuadrado de Pearson devuelve un valor p = 0.2505. Al ser este
+valor superior al nivel estándar(0.05), se concluye que no hay relación entre
+el sexo del alumno y su mano dominante al escribir(independencia).
+
+```{r}
+# 6. Relación entre altura y Wr.Hnd
+datos_2026 %>%
+  mutate(
+    Height = as.numeric(str_replace(as.character(Height), ",", ".")),
+    Wr.Hnd = as.numeric(str_replace(as.character(Wr.Hnd), ",", "."))
+  ) %>%
+  select(Height, Wr.Hnd) %>%
+  na.omit() %>%
+  cor(method = "pearson")
+
+```
+Correlación moderada con tendencia positiva(0.43)
+
+```{r}
+# 7. Comprobar si Hampel detecta outliers en height
+altura_vector <- datos_2026 %>%
+  mutate(Height = as.numeric(str_replace(as.character(Height), ",", "."))) %>%
+  filter(!is.na(Height)) %>%
+  pull(Height)
+
+hampel_analisis <- hampel(altura_vector, k = 3)
+altura_vector[hampel_analisis$ind]
+```
+El outlier detectado mediante el método Hampel es de una persona cuya altura
+son 163cm.
+
+```{r}
+# 8. Imputación generalizada en la asignatura de FP
+mean(datos_2026$FP, na.rm = TRUE)
+
+# 9. Definir variable PulseCat
+datos_2026 %>%
+  mutate(Pulse = as.numeric(as.character(Pulse))) %>%
+  filter(!is.na(Pulse)) %>%
+  mutate(PulseCat = if_else(Pulse >= 65, "PulseH", "PulseL")) %>%
+  group_by(PulseCat) %>%
+  summarise(Media_FP = mean(FP, na.rm = TRUE))
+```
+
+
+```{r}
+# 10. Comprobar la siguiente frase: "El ritmo cardíaco está ligado con la
+# cantidad de sangre que llega al cerebro, por tanto existirá una relación
+# lineal directa esta esta variable y las calificaciones obtenidas en ALG"
+# es cierta o no.
+datos_2026 %>%
+  mutate(Pulse = as.numeric(as.character(Pulse))) %>%
+  select(Pulse, ALG) %>%
+  na.omit() %>%
+  cor(method = "pearson")
+```
+Hay poca correlación positiva entre el ritmo cardíaco y álgebra(0.14 aprox)
+
